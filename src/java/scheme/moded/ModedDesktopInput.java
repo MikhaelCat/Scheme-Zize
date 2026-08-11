@@ -19,7 +19,6 @@ import mindustry.graphics.Pal;
 import mindustry.input.*;
 import mindustry.input.Placement.NormalizeDrawResult;
 import mindustry.input.Placement.NormalizeResult;
-import mindustry.gen.Building;
 import mindustry.gen.Mechc;
 import scheme.tools.DisabledTools;
 import mindustry.world.Block;
@@ -28,7 +27,6 @@ import mindustry.world.blocks.power.PowerNode;
 import mi2u.input.InputOverwrite;
 import scheme.ai.GammaAI;
 import scheme.input.SBinding;
-import scheme.tools.BuildingTools.Mode;
 
 import static arc.Core.*;
 import static mindustry.Vars.*;
@@ -38,7 +36,6 @@ import static scheme.SchemeVars.*;
 public class ModedDesktopInput extends DesktopInput implements ModedInputHandler, InputOverwrite {
 
     public boolean using, movementLocked;
-    public int buildX, buildY, lastX, lastY, lastSize = 8;
 
     public Vec2 lastCamera = new Vec2();
     public Player observed;
@@ -48,13 +45,8 @@ public class ModedDesktopInput extends DesktopInput implements ModedInputHandler
     public Vec2 shootXY = new Vec2();
     public boolean ctrlMove;
     public Vec2 mi2uMove = new Vec2();
-    public Building forceTapped = null;
 
-    @Override
-    protected void removeSelection(int x1, int y1, int x2, int y2, int maxLength) {
-        build.save(x1, y1, x2, y2, maxSchematicSize);
-        super.removeSelection(x1, y1, x2, y2, maxSchematicSize);
-    }
+
 
     @Override
     protected void flushPlans(Seq<BuildPlan> plans) {
@@ -87,41 +79,14 @@ public class ModedDesktopInput extends DesktopInput implements ModedInputHandler
             }
         }
 
-        if (using) {
-            if (build.mode == Mode.edit)
-                drawEditSelection(buildX, buildY, cursorX, cursorY, maxSchematicSize);
-
-            if (build.mode == Mode.connect && isPlacing())
-                drawEditSelection(cursorX - build.size, cursorY - build.size, cursorX + build.size, cursorY + build.size, maxSchematicSize);
-        }
-
-        if (build.mode == Mode.brush)
-            drawEditSelection(cursorX, cursorY, build.size);
-
         drawCommanded();
 
-        if (settings.getBool("forceTapTile") && block == null && !scene.hasMouse()) {
-            Vec2 vec = input.mouseWorld(getMouseX(), getMouseY());
-            Building build = world.buildWorld(vec.x, vec.y);
-            if (build != null && build.team != player.team()) {
-                build.drawSelect();
-                if (!build.enabled && build.block.drawDisabled) build.drawDisabled();
-            }
-        }
+
 
         Draw.reset();
     }
 
-    @Override
-    public void drawBottom() {
-        if (!build.isPlacing()) super.drawBottom();
-        else build.plan.each(plan -> {
-            plan.animScale = 1f;
-            if (build.mode != Mode.remove) drawPlan(plan);
-            else drawBreaking(plan);
-        });
-        if (ai.ai instanceof GammaAI gamma) gamma.draw();
-    }
+
 
     @Override
     public void update() {
@@ -162,16 +127,8 @@ public class ModedDesktopInput extends DesktopInput implements ModedInputHandler
 
         if (scene.hasKeyboard()) return;
 
-        if (input.keyTap(Binding.select) && !scene.hasMouse() && corefrag.choosesNode) corefrag.trySetNode(tileX(getMouseX()), tileY(getMouseY()));
 
-        if (settings.getBool("forceTapTile") && input.keyTap(Binding.select) && !scene.hasMouse()) {
-            if (player.dead()) {
-                var build = world.buildWorld(input.mouseWorldX(), input.mouseWorldY());
-                forceTap(build, true);
-            } else {
-                forceTap(prevSelected == null ? null : prevSelected.build, false);
-            }
-        }
+
 
         modedInput();
         buildInput();
@@ -227,83 +184,9 @@ public class ModedDesktopInput extends DesktopInput implements ModedInputHandler
         mode = none;
     }
 
-    public void buildInput() {
 
-        if(Core.input.keyTap(SBinding.aiBind)) ai.show();
-        if(Core.input.keyTap(SBinding.coreBind) && !admins.isRestricted(DisabledTools.CORE)) admins.placeCore();
-        if(Core.input.keyTap(SBinding.despawnBind) && !admins.isRestricted(DisabledTools.DESPAWN)) admins.despawn();
-        if(Core.input.keyTap(SBinding.effectBind) && !admins.isRestricted(DisabledTools.EFFECT)) admins.manageEffect();
-        if(Core.input.keyTap(SBinding.itemBind) && !admins.isRestricted(DisabledTools.ITEM)) admins.manageItem();
-        if(Core.input.keyTap(SBinding.teamBind) && !admins.isRestricted(DisabledTools.TEAM)) admins.manageTeam();
-        if(Core.input.keyTap(SBinding.unitBind) && !admins.isRestricted(DisabledTools.SPAWN)) admins.manageUnit();
-        if(Core.input.keyTap(SBinding.unitSpawnBind) && !admins.isRestricted(DisabledTools.SPAWN)) admins.spawnUnits();
-        if(Core.input.keyTap(SBinding.teleportBind) && !admins.isRestricted(DisabledTools.TELEPORT)) admins.teleport();
-        if(Core.input.keyTap(SBinding.deletePLayer)) admins.deletePlyaer();;
-        if (!hudfrag.building.fliped) build.setMode(Mode.none);
-        if (build.mode == Mode.none) return;
 
-        int cursorX = tileX();
-        int cursorY = tileY();
-
-        boolean has = hasMoved(cursorX, cursorY);
-        if (has) build.plan.clear();
-
-        if (using) {
-            if (build.mode == Mode.drop) build.drop(cursorX, cursorY);
-            if (build.mode == Mode.replace) build.replace(cursorX, cursorY);
-            if (build.mode == Mode.remove) build.remove(cursorX, cursorY);
-            if (build.mode == Mode.connect) {
-                if (block instanceof PowerNode == false) block = Blocks.powerNode;
-                build.connect(cursorX, cursorY, (x, y) -> {
-                    updateLine(x, y);
-                    build.plan.addAll(linePlans).remove(0);
-                });
-            }
-
-            if (build.mode == Mode.fill) build.fill(buildX, buildY, cursorX, cursorY, maxSchematicSize);
-            if (build.mode == Mode.circle) build.circle(cursorX, cursorY);
-            if (build.mode == Mode.square) build.square(cursorX, cursorY, (x1, y1, x2, y2) -> {
-                updateLine(x1, y1, x2, y2);
-                build.plan.addAll(linePlans);
-            });
-
-            if (build.mode == Mode.brush && !admins.isRestricted(DisabledTools.BRUSH)) admins.brush(cursorX, cursorY, build.size);
-
-            lastX = cursorX;
-            lastY = cursorY;
-            lastSize = build.size;
-            linePlans.clear();
-
-            if (input.keyRelease(Binding.select)) {
-                flushBuildingTools();
-
-                if (build.mode == Mode.pick) tile.select(cursorX, cursorY);
-                if (build.mode == Mode.edit) {
-                    NormalizeResult result = Placement.normalizeArea(buildX, buildY, cursorX, cursorY, 0, false, maxSchematicSize);
-                    if (!admins.isRestricted(DisabledTools.FILL)) admins.fill(result.x, result.y, result.x2, result.y2);
-                }
-            } else build.resize(input.axis(Binding.zoom));
-        }
-
-        if (input.keyTap(Binding.select) && !scene.hasMouse()) {
-            buildX = cursorX;
-            buildY = cursorY;
-            using = true;
-
-            var scl = renderer.getScale() == Scl.scl(renderer.minZoom) ? renderer.getScale() : Mathf.round(renderer.getScale(), 0.5f);
-            renderer.minZoom = renderer.maxZoom = scl / Scl.scl(); // a crutch to lock camera zoom
-        }
-
-        if (input.keyRelease(Binding.select) || input.keyTap(Binding.deselect) || input.keyTap(Binding.breakBlock)) {
-            using = false;
-            build.plan.clear();
-            m_settings.apply();
-        }
-    }
-
-    public boolean hasMoved(int x, int y) {
-        return lastX != x || lastY != y || lastSize != build.size;
-    }
+    public boolean hasMoved(int x, int y) { return true; }
 
     public void changePanSpeed(float value) {
         panSpeed = 4.5f * value / 4f;
@@ -354,41 +237,6 @@ public class ModedDesktopInput extends DesktopInput implements ModedInputHandler
     public void move(Vec2 movement) {
         ctrlMove = true;
         mi2uMove.set(movement);
-    }
-
-    private void forceTap(Building build, boolean includeSelfTeam) {
-        if (build == null) return;
-        if (!includeSelfTeam && build.interactable(player.team())) return;
-
-        if (build == forceTapped) {
-            inv.hide();
-            config.hideConfig();
-            forceTapped = null;
-            return;
-        }
-
-        var ptm = state.playtestingMap;
-        state.playtestingMap = state.map;
-
-        if (build.block.configurable) {
-            if ((!config.isShown() && build.shouldShowConfigure(player))
-                    || (config.isShown() && config.getSelected().onConfigureBuildTapped(build))) {
-                config.showConfig(build);
-            }
-        } else if (!config.hasConfigMouse()) {
-            if (config.isShown() && config.getSelected().onConfigureBuildTapped(build)) {
-                config.hideConfig();
-            }
-        }
-
-        if (build.block.synthetic() && build.block.allowConfigInventory) {
-            if (build.block.hasItems && build.items.total() > 0) {
-                inv.showFor(build);
-            }
-        }
-
-        forceTapped = build;
-        state.playtestingMap = ptm;
     }
 
     @Override

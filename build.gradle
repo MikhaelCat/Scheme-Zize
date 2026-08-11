@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-version = '2.0.0'
+version = '1.0.0'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -16,12 +16,12 @@ configurations.matching { it.canBeResolved }.configureEach {
 }
 
 base {
-    archivesName = 'Scheme-Size'
+    archivesName = 'Scheme-Zize'
 }
 
 sourceSets {
     main {
-        java.srcDirs = ['src/java', 'src/java/api/src', 'src/java/client/src', 'src/java/common/src']
+        java.srcDirs = ['src/java', 'src/java/client/src']
         resources.srcDirs = ['src/resources']
     }
 }

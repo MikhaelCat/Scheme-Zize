@@ -13,13 +13,11 @@ import mindustry.game.Schematic;
 import mindustry.gen.Mechc;
 import mindustry.gen.Player;
 import mindustry.gen.Unit;
-import mindustry.gen.Building;
 import mindustry.input.*;
 import mindustry.input.Placement.NormalizeResult;
 import mindustry.world.blocks.power.PowerNode;
 import mi2u.input.InputOverwrite;
 import scheme.ai.GammaAI;
-import scheme.tools.BuildingTools.Mode;
 import scheme.tools.DisabledTools;
 
 import static arc.Core.*;
@@ -31,7 +29,6 @@ import static scheme.SchemeVars.*;
 public class ModedMobileInput extends MobileInput implements ModedInputHandler, InputOverwrite {
 
     public boolean using, movementLocked, lastTouched, shootingLocked;
-    public int buildX, buildY, lastX, lastY, lastSize = 8;
 
     public Player observed;
 
@@ -40,7 +37,6 @@ public class ModedMobileInput extends MobileInput implements ModedInputHandler, 
     public Vec2 shootXY = new Vec2();
     public boolean ctrlMove;
     public Vec2 mi2uMove = new Vec2();
-    public Building forceTapped = null;
 
     private boolean isRelease() {
         return lastTouched && !input.isTouched(0);
@@ -50,11 +46,7 @@ public class ModedMobileInput extends MobileInput implements ModedInputHandler, 
         return !lastTouched && input.isTouched(0);
     }
 
-    @Override
-    protected void removeSelection(int x1, int y1, int x2, int y2, boolean flush) {
-        build.save(x1, y1, x2, y2, maxSchematicSize);
-        super.removeSelection(x1, y1, x2, y2, flush, maxSchematicSize);
-    }
+
 
     @Override
     public void buildPlacementUI(Table table) {
@@ -79,38 +71,12 @@ public class ModedMobileInput extends MobileInput implements ModedInputHandler, 
         else if (mode == rebuildSelect)
             drawRebuildSelection(lineStartX, lineStartY, lastLineX, lastLineY);
 
-        if (using) {
-            if (build.mode == Mode.edit)
-                drawEditSelection(buildX, buildY, lastX, lastY, maxSchematicSize);
-
-            if (build.mode == Mode.connect && isPlacing())
-                drawEditSelection(lastX - build.size + 1, lastY - build.size + 1, lastX + build.size - 1, lastY + build.size - 1, 256);
-        }
-
-        if (build.mode == Mode.brush)
-            drawEditSelection(lastX, lastY, build.size);
-
         drawCommanded();
 
-        if (settings.getBool("forceTapTile") && !scene.hasMouse()) {
-            var build = world.buildWorld(input.mouseWorldX(), input.mouseWorldY());
-            if (build != null && build.team != player.team()) {
-                build.drawSelect();
-                if (!build.enabled && build.block.drawDisabled) build.drawDisabled();
-            }
-        }
+
     }
 
-    @Override
-    public void drawBottom() {
-        if (!build.isPlacing()) super.drawBottom();
-        else build.plan.each(plan -> {
-            plan.animScale = 1f;
-            if (build.mode != Mode.remove) drawPlan(plan);
-            else drawBreaking(plan);
-        });
-        if (ai.ai instanceof GammaAI gamma) gamma.draw();
-    }
+
 
     @Override
     public void update() {
@@ -124,12 +90,8 @@ public class ModedMobileInput extends MobileInput implements ModedInputHandler, 
             if (input.isTouched(0) && !scene.hasMouse()) observed = null;
         }
 
-        if (isTap() && !scene.hasMouse() && corefrag.choosesNode) corefrag.trySetNode(tileX(), tileY());
 
-        if (settings.getBool("forceTapTile") && isTap() && !scene.hasMouse()) {
-            var build = world.buildWorld(input.mouseWorldX(), input.mouseWorldY());
-            forceTap(build, player.dead());
-        }
+
 
         buildInput();
         if (movementLocked) {
@@ -173,67 +135,9 @@ public class ModedMobileInput extends MobileInput implements ModedInputHandler, 
         lastSchematic = schem;
     }
 
-    public void buildInput() {
-        if (!hudfrag.building.fliped) build.setMode(Mode.none);
-        if (build.mode == Mode.none) return;
 
-        int cursorX = tileX();
-        int cursorY = tileY();
 
-        boolean has = hasMoved(cursorX, cursorY);
-        if (has) build.plan.clear();
-
-        if (using) {
-            if (build.mode == Mode.drop) build.drop(cursorX, cursorY);
-            if (build.mode == Mode.replace) build.replace(cursorX, cursorY);
-            if (build.mode == Mode.remove) build.remove(cursorX, cursorY);
-            if (build.mode == Mode.connect) {
-                if (block instanceof PowerNode == false) block = Blocks.powerNode;
-                build.connect(cursorX, cursorY, (x, y) -> {
-                    updateLine(x, y);
-                    build.plan.addAll(linePlans).remove(0);
-                });
-            }
-
-            if (build.mode == Mode.fill) build.fill(buildX, buildY, cursorX, cursorY, maxSchematicSize);
-            if (build.mode == Mode.circle) build.circle(cursorX, cursorY);
-            if (build.mode == Mode.square) build.square(cursorX, cursorY, (x1, y1, x2, y2) -> {
-                updateLine(x1, y1, x2, y2);
-                build.plan.addAll(linePlans);
-            });
-
-            if (build.mode == Mode.brush && !admins.isRestricted(DisabledTools.BRUSH)) admins.brush(cursorX, cursorY, build.size);
-
-            lastX = cursorX;
-            lastY = cursorY;
-            lastSize = build.size;
-            linePlans.clear();
-
-            if (isRelease()) {
-                flushBuildingTools();
-
-                if (build.mode == Mode.pick) tile.select(cursorX, cursorY);
-                if (build.mode == Mode.edit) {
-                    NormalizeResult result = Placement.normalizeArea(buildX, buildY, cursorX, cursorY, 0, false, maxSchematicSize);
-                    if (!admins.isRestricted(DisabledTools.FILL)) admins.fill(result.x, result.y, result.x2, result.y2);
-                }
-            }
-        }
-
-        if (isTap() && !scene.hasMouse()) {
-            buildX = cursorX;
-            buildY = cursorY;
-            using = true;
-        }
-
-        if (isRelease()) using = false;
-
-        lastTouched = input.isTouched();
-    }
-
-    public boolean hasMoved(int x, int y) {
-        return lastX != x || lastY != y || lastSize != build.size;
-    }
+    public boolean hasMoved(int x, int y) { return true; }
 
     // there is nothing because, you know, it's mobile
     public void changePanSpeed(float value) {}
@@ -280,41 +184,6 @@ public class ModedMobileInput extends MobileInput implements ModedInputHandler, 
     public void move(Vec2 movement) {
         ctrlMove = true;
         mi2uMove.set(movement);
-    }
-
-    private void forceTap(Building build, boolean includeSelfTeam) {
-        if (build == null) return;
-        if (!includeSelfTeam && build.interactable(player.team())) return;
-
-        if (build == forceTapped) {
-            inv.hide();
-            config.hideConfig();
-            forceTapped = null;
-            return;
-        }
-
-        var ptm = state.playtestingMap;
-        state.playtestingMap = state.map;
-
-        if (build.block.configurable) {
-            if ((!config.isShown() && build.shouldShowConfigure(player))
-                    || (config.isShown() && config.getSelected().onConfigureBuildTapped(build))) {
-                config.showConfig(build);
-            }
-        } else if (!config.hasConfigMouse()) {
-            if (config.isShown() && config.getSelected().onConfigureBuildTapped(build)) {
-                config.hideConfig();
-            }
-        }
-
-        if (build.block.synthetic() && build.block.allowConfigInventory) {
-            if (build.block.hasItems && build.items.total() > 0) {
-                inv.showFor(build);
-            }
-        }
-
-        forceTapped = build;
-        state.playtestingMap = ptm;
     }
 
     @Override

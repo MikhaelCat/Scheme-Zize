@@ -1,30 +1,17 @@
-name: scheme-size
-displayName: "!Scheme Size"
-subtitle: "Actually increase scheme size"
-author: "[accent]Mithra[]\n[gray]Original: [accent]xzxADIxzx[]"
+name: scheme-zize
+displayName: "Scheme-Zize"
+subtitle: "Schematic size and admin tools"
+author: "Fallendragon"
 description:
 '''
-A custom port of Scheme Size for newer Mindustry builds.
-
-Started as a schematic size increase, now a set of QoL and admin tools: bigger schematics, building helpers, renderer options, AI, keybinds, CLaJ, and an advanced console.
-
-[accent]Client & server:[]
-Same jar works as a normal client mod and on a dedicated server. On a vanilla server (without this mod) you still get client QoL. If the server also has the jar, admin tools like fill, items, units, teleport and rules sync over the network - even when you are not the local host. Those actions require admin.
-
-Requires Mindustry v156+. One jar for desktop and mobile (156–159). Vanilla recommended.
-
-Original mod by [accent]xzxADIxzx[]. Port by [accent]Mithra[]. The original author is not involved in this port.
-
 [accent]
  - Schematic size 512
  - Building & renderer tools
  - Admin tools (optional server sync)
  - AI support
- - CLaJ, keybinds, updater
  - Advanced console & rule setter
 '''
-version: 2.0.0
+version: 1.0.0
 minGameVersion: 156
-repo: ItsXeroc/Scheme-Size
 hidden: true
 main: scheme.Main

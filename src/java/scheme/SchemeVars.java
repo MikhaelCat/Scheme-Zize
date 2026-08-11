@@ -32,7 +32,6 @@ public class SchemeVars {
     public static RuleSetterDialog rulesetter;
     public static AdminsTools admins;
     public static RendererTools render;
-    public static BuildingTools build;
     public static UnitsCache units;
     public static BuildsCache builds;
 
@@ -55,17 +54,15 @@ public class SchemeVars {
 
     public static HudFragment hudfrag;
     public static PlayerListFragment listfrag;
-    public static ShortcutFragment shortfrag;
-    public static CoreInfoFragment corefrag;
 
     public static ServerUtils serverUtils;
 
     public static void load() {
         Events.on(EventType.ClientLoadEvent.class, e -> {
             try {
-                TextureRegion base = atlas.find("scheme-size-status-invincible");
+                TextureRegion base = atlas.find("scheme-zize-status-invincible");
                 if (base == null) {
-                    Log.err("Region scheme-size-status-invincible not found in atlas!");
+                    Log.err("Region scheme-zize-status-invincible not found in atlas!");
                     return;
                 }
 
@@ -113,7 +110,6 @@ public class SchemeVars {
         rulesetter = new RuleSetterDialog();
         admins = AdminsConfigDialog.getTools();
         render = new RendererTools();
-        build = new BuildingTools();
         adminscfg = new AdminsConfigDialog();
         rendercfg = new RendererConfigDialog();
 
@@ -132,8 +128,6 @@ public class SchemeVars {
 
         hudfrag = new HudFragment();
         listfrag = new PlayerListFragment();
-        shortfrag = new ShortcutFragment();
-        corefrag = new CoreInfoFragment();
 
         serverUtils = new ServerUtils();
 

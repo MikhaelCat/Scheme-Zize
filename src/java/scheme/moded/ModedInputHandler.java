@@ -17,7 +17,6 @@ import mindustry.input.Placement;
 import mindustry.input.Placement.NormalizeDrawResult;
 import mindustry.world.Tile;
 import scheme.compat.GameCompat;
-import scheme.tools.BuildingTools.Mode;
 
 import static arc.Core.*;
 import static mindustry.Vars.*;
@@ -45,16 +44,9 @@ public interface ModedInputHandler {
 
     void flush(Seq<BuildPlan> plans);
 
-    default void flushLastRemoved() {
-        flush(build.removed);
-        build.removed.clear();
-    }
 
-    default void flushBuildingTools() {
-        if (build.mode != Mode.remove) flush(build.plan);
-        else build.plan.each(player.unit()::addBuild);
-        build.plan.clear();
-    }
+
+
 
     InputHandler asHandler();
 

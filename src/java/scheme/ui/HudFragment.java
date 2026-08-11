@@ -30,11 +30,9 @@ import mindustry.graphics.Pal;
 import mindustry.type.Item;
 import mindustry.ui.Fonts;
 import mindustry.ui.Styles;
-import scheme.SchemeUpdater;
 import scheme.ai.GammaAI;
 import scheme.ai.NetMinerAI;
 import scheme.ai.GammaAI.Updater;
-import scheme.tools.BuildingTools.Mode;
 import scheme.tools.DisabledTools;
 import scheme.ui.PlayerListFragment.TooltipLocker;
 
@@ -65,17 +63,6 @@ public class HudFragment {
     public void build(Group parent) {
         Events.run(WorldLoadEvent.class, this::updateBlocks);
         Events.run(UnlockEvent.class, this::updateBlocks);
-        Events.run(UnlockEvent.class, this::updateBlocks);
-        Events.run(ResizeEvent.class, () -> Time.run(10f, () -> { // idk why, but after resizing shortcut appears in the center of the screen
-            if (shortfrag.visible) shortfrag.show(graphics.getWidth() - (int) Scl.scl(15f), graphics.getHeight() / 2);
-        }));
-
-        if (mobile) {
-            var button = getSchematicsButton();
-            button.getListeners().remove(2);
-            button.clicked(ui.schematics::show);
-        }
-
         parent.fill(cont -> { // Shield Bar
             cont.name = "shieldbar";
             cont.top().left();
@@ -138,56 +125,6 @@ public class HudFragment {
             }).width(150f).margin(0f).update(pad -> pad.setTranslation(0f, settings.getBool("minimap") ? -Scl.scl(mobile ? 272f : 188f) : 0f)).row();
         });
 
-        parent.fill(cont -> { // Building Tools
-            cont.name = "buildingtools";
-            cont.bottom().right();
-
-            cont.visible(() -> ui.hudfrag.shown && !ui.minimapfrag.shown() && !control.input.commandMode);
-
-            size = new TextField("8", input);
-            size.setFilter(TextFieldFilter.digitsOnly);
-            size.changed(() -> build.resize(size.getText()));
-
-            cont.table(Tex.buttonEdge2, pad -> {
-                partitionbt(pad, mode -> {
-                    mode.button(Icon.cancel, style, () -> {
-                        control.input.block = null;
-                        build.plan.clear();
-                    }).visible(build::isPlacing).row();
-                    mode.add(size).row();
-                    mode.button(Icon.up, style, () -> build.resize(1)).row();
-                    mode.image(Icon.resize).row();
-                    mode.button(Icon.down, style, () -> build.resize(-1)).row();
-                });
-
-                partitionbt(pad, mode -> {
-                    mode.button(Icon.menu, style, tile::show).tooltip("@select.tile").padTop(46f).row();
-                    setMode(mode, Icon.pick, Mode.pick);
-                    setMode(mode, Icon.pencil, Mode.brush);
-                    setMode(mode, Icon.editor, Mode.edit);
-                });
-
-                partitionbt(pad, mode -> {
-                    mode.button(Icon.redo, style, m_input::flushLastRemoved).tooltip("@keycomb.return").padBottom(46f).row();
-                    setMode(mode, Icon.fill, Mode.fill);
-                    setMode(mode, Icon.grid, Mode.square);
-                    setMode(mode, Icon.commandRally, Mode.circle);
-                });
-
-                partitionbt(pad, mode -> {
-                    mode.add(building).row();
-                    setMode(mode, Icon.upload, Mode.drop);
-                    setMode(mode, Icon.link, Mode.replace);
-                    setMode(mode, Icon.hammer, Mode.remove);
-                    setMode(mode, Icon.power, Mode.connect);
-                }).visible(() -> true).update(mode -> mode.setTranslation(Scl.scl(building.fliped ? 0f : -87f), 0f));
-            }).height(254f).update(pad -> {
-                if (block[0] == null) return; // block is null before the world is loaded
-                pad.setTranslation(Scl.scl(building.fliped ? 4f : 178f) - block[0].getWidth(), 0f);
-                pad.setWidth(Scl.scl(building.fliped ? 244f : 70f)); // more magic numbers to the god of magic numbers
-            });
-        });
-
         parent.fill(cont -> { // Wave Approaching
             cont.name = "waveapproaching";
             cont.bottom();
@@ -204,83 +141,34 @@ public class HudFragment {
             }).get().color.a(0f); // hide on startup
         });
 
-        if (!settings.getBool("mobilebuttons") && !mobile) return;
-
-        getCommandButton(cont -> { // Shortcut and cursed schematics button
-            if (!SchemeUpdater.installed("test-utils")) // hardcoded paddings
-                cont.row(); // for command button
-            if (mobile) return;
-            else {
-                cont.button("@schematics", Icon.paste, Styles.squareTogglet, () -> {
-                            if(net.client() && !build.schemesAllowed) {ui.showInfoFade(restricted); return;} // not on servers
-                            if (shortfrag.visible) shortfrag.hide();
-                            else shortfrag.show(graphics.getWidth() - (int) Scl.scl(15f), graphics.getHeight() / 2);
-                        }).size(155f, 50f).margin(8f).checked(t -> shortfrag.visible)
-                        .visible(() -> !Vars.mobile || !control.input.isPlacing());
-
-                if (!SchemeUpdater.installed("test-utils")) cont.row();
-
-                cont.button("@none", Icon.menu, Styles.flatBordert, () -> m_schematics.nextLayer()).size(155f, 50f).margin(6f)
-                        .visible(() -> !Vars.mobile || !control.input.isPlacing())
-                        .update(button -> button.setText(bundle.get("layer." + m_schematics.layer)));
-            }
-            });
-
-        parent.fill(cont -> { // Mobile Buttons
-            cont.name = "mobilebuttons";
-            cont.top().left();
-
+        parent.fill(cont -> { // Admin Buttons
+            cont.name = "adminbuttons";
+            cont.bottom().right();
             cont.visible(() -> ui.hudfrag.shown && !ui.minimapfrag.shown());
 
-            cont.table(Tex.buttonEdge4, pad -> {
-                partitionmb(pad, mode -> {
-                    mode.add(mobiles);
-                    if (mobile) setAction(mode, "disarmed", m_input::lockShooting);
-                    setAction(mode, "blasted", () -> { if (!admins.isRestricted(DisabledTools.DESPAWN)) admins.despawn(); });
-                    setAction(mode, "overdrive", () -> { if (!admins.isRestricted(DisabledTools.TELEPORT)) admins.teleport(true); });
-                    setAction(mode, Icon.lock, () -> m_input.lockMovement());
-                    setAction(mode, Icon.fileText, () -> { if (!admins.isRestricted(DisabledTools.RULESETTER) && !admins.unusable()) rulesetter.show(); });
-                }).visible(() -> true).update(mode -> mode.setTranslation(0f, Scl.scl(mobiles.fliped ? 0f : -63.2f))).row();
-
-                partitionmb(pad, mode -> {
-                    setAction(mode, Icon.effect, () -> { if (!admins.isRestricted(DisabledTools.CORE)) admins.placeCore(); });
-                    setAction(mode, "boss", () -> { if (!admins.isRestricted(DisabledTools.TEAM)) admins.manageTeam(); });
-                    setAction(mode, Icon.logic, () -> ai.select());
-                    setAction(mode, Icon.admin, () -> adminscfg.show());
-                    setAction(mode, Icon.image, () -> rendercfg.show());
-                }).row();
-
-                partitionmb(pad, mode -> {
-                    setAction(mode, Icon.units, () -> { if (!admins.isRestricted(DisabledTools.SPAWN)) admins.manageUnit(); });
-                    setAction(mode, Icon.add, () -> { if (!admins.isRestricted(DisabledTools.SPAWN)) admins.spawnUnits(); });
-                    setAction(mode, "corroded", () -> { if (!admins.isRestricted(DisabledTools.EFFECT)) admins.manageEffect(); });
-                    setAction(mode, Icon.production, () -> { if (!admins.isRestricted(DisabledTools.ITEM)) admins.manageItem(); });
-                }).row();
+            cont.table(pad -> {
+                pad.defaults().size(63.5f);
+                pad.button(Icon.lock, style, m_input::lockMovement);
+                pad.button(Icon.admin, style, () -> adminscfg.show());
+                pad.button(Icon.logic, style, () -> ai.select());
+                pad.row();
+                pad.button(Icon.fileText, style, () -> {
+                    if (!admins.isRestricted(DisabledTools.RULESETTER) && !admins.unusable()) rulesetter.show();
+                });
+                pad.button(atlas.drawable("status-overdrive"), style, () -> {
+                    if (!admins.isRestricted(DisabledTools.TELEPORT)) admins.teleport(true);
+                });
             }).margin(0f).update(pad -> {
-                if (block[1] == null) return; // waves main are not null but block is
-                pad.setTranslation(0f, Scl.scl((mobiles.fliped ? 0f : 127f) - (mobile ? 69f : 0f)) - block[state.rules.editor ? 2 : 1].getHeight());
-                pad.setHeight(Scl.scl(mobiles.fliped ? 190.8f : 63.8f));
+                if (block[0] == null) return;
+                pad.setTranslation(Scl.scl(0f) - block[0].getWidth(), 0f);
             });
         });
     }
-    private Cell<Table> partitionbt(Table table, Cons<Table> cons) {
-        if (table.hasChildren()) table.image().color(Pal.gray).fillY().width(4f).pad(4f).visible(() -> building.fliped);
-        return table.table(cont -> {
-            cont.defaults().size(46f).bottom().right();
-            cons.get(cont);
-        }).visible(() -> building.fliped);
-    }
 
-    private Cell<Table> partitionmb(Table table, Cons<Table> cons) {
-        return table.table(cont -> {
-            cont.defaults().size(63.5f).left();
-            cons.get(cont);
-        }).visible(() -> mobiles.fliped);
-    }
 
-    private void setMode(Table table, Drawable icon, Mode mode) {
-        table.button(icon, check, () -> build.setMode(mode)).checked(t -> build.mode == mode).with(button -> button.addListener(new TooltipLocker("@tooltip." + mode))).row();
-    }
+
+
+
 
     private void setAction(Table table, Object icon, Runnable listener) {
         table.button(icon instanceof String name ? atlas.drawable("status-" + name) : (Drawable) icon, style, 37f, listener);
@@ -312,45 +200,13 @@ public class HudFragment {
         });
     }
 
-    private Table getInfoTable() {
-        return (Table) ((Table) getWavesMain().getChildren().get(0)).getChildren().get(1);
-    }
 
-    private Stack getWavesMain() {
-        return (Stack) ((Table) ui.hudGroup.find("overlaymarker")).getChildren().get(mobile ? 3 : 0);
-    }
 
-    private ImageButton getSchematicsButton() {
-        Element overlay = ui.hudGroup.find("overlaymarker");
-        if (!(overlay instanceof Table)) return null;
 
-        return findByName((Table) overlay, "schematics");
-    }
 
-    private ImageButton findByName(Table table, String name) {
-        for (Element e : table.getChildren()) {
-            if (name.equals(e.name) && e instanceof ImageButton) {
-                return (ImageButton) e;
-            }
-            if (e instanceof Table) {
-                ImageButton found = findByName((Table) e, name);
-                if (found != null) return found;
-            }
-        }
-        return null;
-    }
 
-    private void getCommandButton(Cons<Table> cons) {
-        if (mobile) Events.run(ClientLoadEvent.class, () -> { // the command button is created after the client is loaded
-            return;
-        });
-        else ui.hudGroup.fill(cont -> {
-            cont.name = "shortcutbutton"; // it's here because there's no sense in renaming an already created table
-            cont.bottom().left();
 
-            cont.visible(() -> ui.hudfrag.shown && !ui.minimapfrag.shown());
-            cont.marginBottom(SchemeUpdater.installed("test-utils") ? 120f : 0f);
-            cons.get(cont);
-        });
-    }
+
+
+
 }
