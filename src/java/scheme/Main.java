@@ -65,6 +65,7 @@ public class Main extends Mod {
         if (m_schematics != null && m_schematics.requiresDialog) ui.showOkText("@rename.name", "@rename.text", () -> {});
 
         UpdateContent.update();
+        SchemeUpdater.load();
     }
 
     public static void log(String info) {

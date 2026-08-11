@@ -39,6 +39,6 @@ Output: `dist/Scheme-Zize.jar`
 
 ## Credit
 
-- Maintained as Scheme-Zize by Fallendragon.
+- Repository: https://github.com/MikhaelCat/Scheme-Zize
 - Maintained as Scheme-Zize by Fallendragon.
 

@@ -2,6 +2,7 @@ name: scheme-zize
 displayName: "Scheme-Zize"
 subtitle: "Schematic size and admin tools"
 author: "Fallendragon"
+repo: "MikhaelCat/Scheme-Zize"
 description:
 '''
 [accent]
